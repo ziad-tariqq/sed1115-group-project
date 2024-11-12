@@ -1,32 +1,42 @@
-from machine import ADC, Pin
+from machine import Pin, ADC, PWM
 import time
 
-# Initialize ADC for potentiometers
-x_pot = ADC(Pin(26))  # X potentiometer on GPIO 26
-y_pot = ADC(Pin(27))  # Y potentiometer on GPIO 27
-pen_switch = Pin(15, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 15
+# Initialize feedback pins and PWM control for shoulder and elbow joints
+shoulder_feedback = ADC(Pin(28))  # Example feedback pin for shoulder
+elbow_feedback = ADC(Pin(27))     # Example feedback pin for elbow
 
-# Function to read potentiometer values
-def read_potentiometers():
-    return x_pot.read_u16(), y_pot.read_u16()  # Return raw ADC values
+shoulder_pwm = PWM(Pin(15))  # Example PWM pin for shoulder control
+elbow_pwm = PWM(Pin(14))     # Example PWM pin for elbow control
 
-# Function to debounce the pen control switch
-def debounce_switch(pin):
-    stable_time = 20  # Debounce delay in ms
-    last_state = pin.value()
-    last_debounce_time = time.ticks_ms()
+shoulder_pwm.freq(50)  # Servo frequency (e.g., 50 Hz for standard servos)
+elbow_pwm.freq(50)
 
-    while True:
-        current_state = pin.value()
-        if current_state != last_state:
-            last_debounce_time = time.ticks_ms()
-        if time.ticks_diff(time.ticks_ms(), last_debounce_time) > stable_time:
-            if current_state != pin.value():
-                return current_state
-        last_state = current_state
+# Define a function to gradually move a joint and record its boundaries
+def calibrate_joint(pwm, feedback):
+    min_position = 65535  # Start with max ADC value
+    max_position = 0      # Start with min ADC value
+    pwm.duty_u16(0)       # Start at the initial position
+    time.sleep(1)
 
-# Function to get processed input data
-def get_input_data():
-    x_value, y_value = read_potentiometers()  # Get potentiometer readings
-    pen_state = debounce_switch(pen_switch)  # Get debounced switch state
-    return {'x': x_value, 'y': y_value, 'pen': pen_state}  # Output as dictionary
+    # Move the joint slowly across its range
+    for position in range(0, 65535, 500):  # Adjust the increment as needed
+        pwm.duty_u16(position)
+        time.sleep(0.05)  # Allow time for the servo to move
+        feedback_value = feedback.read_u16()  # Read feedback
+
+        # Track the min and max feedback values
+        if feedback_value < min_position:
+            min_position = feedback_value
+        if feedback_value > max_position:
+            max_position = feedback_value
+
+    pwm.duty_u16(0)  # Return to initial position
+    return min_position, max_position
+
+# Run the calibration for shoulder and elbow
+shoulder_limits = calibrate_joint(shoulder_pwm, shoulder_feedback)
+elbow_limits = calibrate_joint(elbow_pwm, elbow_feedback)
+
+# Output the calibration results
+print("Shoulder limits:", shoulder_limits)
+print("Elbow limits:", elbow_limits)
