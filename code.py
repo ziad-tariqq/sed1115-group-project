@@ -1,5 +1,6 @@
 from machine import ADC, Pin, PWM
 import time
+import random  # Needed for Cloryel's mock data generation
 
 # Initialize ADC for potentiometers
 x_pot = ADC(Pin(26))  # X potentiometer on GPIO 26
@@ -65,6 +66,21 @@ def get_input_data():
     pen_state = debounce_switch(pen_switch)   # Get debounced switch state
     return {'x': x_value, 'y': y_value, 'pen': pen_state}  # Output as dictionary
 
+# Part of Cloryel: Function to map input values to servo angles
+def map_input_to_servo_angles(x_value, y_value):
+    # Assuming x_value and y_value are between 0 and 65535
+    # Map these values to servo angles (0 to 180 degrees)
+    shoulder_angle = (y_value / 65535) * 180
+    elbow_angle = (x_value / 65535) * 180
+    return shoulder_angle, elbow_angle
+
+# Part of Cloryel: Function to create mock data generator
+def generate_mock_data():
+    x_value = random.randint(0, 65535)
+    y_value = random.randint(0, 65535)
+    pen_state = random.choice([0, 1])
+    return {'x': x_value, 'y': y_value, 'pen': pen_state}
+
 # Main function
 def main():
     # Calibrate shoulder and elbow joints
@@ -80,10 +96,16 @@ def main():
 
     # Main loop to handle inputs
     while True:
-        input_data = get_input_data()
+        # Generate mock data (Cloryel's part)
+        input_data = generate_mock_data()
+
+        # Map input data to servo angles (Cloryel's part)
+        shoulder_angle, elbow_angle = map_input_to_servo_angles(input_data['x'], input_data['y'])
+        print("Mapped Angles - Shoulder:", shoulder_angle, "Elbow:", elbow_angle)
+
+        # Print input data for debugging
         print("Input Data:", input_data)
-        # Add code here to process input_data and control servos accordingly
-        time.sleep(0.1)  # Adjust the delay as needed
+        time.sleep(0.5)  # Adjust the delay as needed
 
 # Run the main function
 if __name__ == "__main__":
