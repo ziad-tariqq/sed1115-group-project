@@ -2,24 +2,24 @@ from machine import ADC, Pin, PWM
 import time
 import random  # Needed for Cloryel's mock data generation
 
-# Initialize ADC for potentiometers
+# Ziad's Contribution: Initialize ADC for potentiometers
 x_pot = ADC(Pin(26))  # X potentiometer on GPIO 26
 y_pot = ADC(Pin(27))  # Y potentiometer on GPIO 27
 
-# Initialize pen control switch
+# Ziad's Contribution: Initialize pen control switch
 pen_switch = Pin(15, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 15
 
-# Initialize PWM for shoulder, elbow, and pen servos
+# Frank's Contribution: Initialize PWM for shoulder, elbow, and pen servos
 shoulder_pwm = PWM(Pin(14))  # Shoulder servo on GPIO 14
 elbow_pwm = PWM(Pin(13))     # Elbow servo on GPIO 13
 pen_pwm = PWM(Pin(12))       # Pen servo on GPIO 12
 
-# Set PWM frequency for servos
+# Frank's Contribution: Set PWM frequency for servos
 shoulder_pwm.freq(50)  # 50 Hz for standard servos
 elbow_pwm.freq(50)
 pen_pwm.freq(50)
 
-# FRANCK'S PART OF THE CODE: Safety limits for servos
+# Frank's Contribution: Safety limits for servos
 SHOULDER_MIN = 0
 SHOULDER_MAX = 180
 ELBOW_MIN = 0
@@ -27,19 +27,19 @@ ELBOW_MAX = 180
 PEN_MIN = 0
 PEN_MAX = 90
 
-# FRANCK'S PART OF THE CODE: Function to set servo angle
+# Frank's Contribution: Function to set servo angle
 def set_servo_angle(servo, angle):
     duty = int((angle / 180) * 65535)
     servo.duty_u16(duty)
 
-# FRANCK'S PART OF THE CODE: Function to safely set servo angle
+# Frank's Contribution: Function to safely set servo angle
 def safe_set_servo_angle(servo, angle, min_angle, max_angle):
     if min_angle <= angle <= max_angle:
         set_servo_angle(servo, angle)
     else:
         print("Angle out of range!")
 
-# Function to calibrate a joint and determine its movement boundaries
+# Frank's Contribution: Function to calibrate a joint and determine its movement boundaries
 def calibrate_joint(pwm, feedback_adc):
     min_feedback = 65535  # Start with max ADC value
     max_feedback = 0      # Start with min ADC value
@@ -61,13 +61,13 @@ def calibrate_joint(pwm, feedback_adc):
     pwm.duty_u16(0)  # Return to initial position
     return min_feedback, max_feedback
 
-# Function to read potentiometer values
+# Ziad's Contribution: Function to read potentiometer values
 def read_potentiometers():
     x_value = x_pot.read_u16()  # Returns a value between 0 and 65535
     y_value = y_pot.read_u16()
     return x_value, y_value
 
-# Function to debounce the pen control switch
+# Ziad's Contribution: Function to debounce the pen control switch
 def debounce_switch(pin):
     stable_time = 20  # milliseconds
     last_state = pin.value()
@@ -82,13 +82,13 @@ def debounce_switch(pin):
                 return current_state
         last_state = current_state
 
-# Function to get processed input data
+# Ziad's Contribution: Function to get processed input data
 def get_input_data():
     x_value, y_value = read_potentiometers()  # Get potentiometer readings
     pen_state = debounce_switch(pen_switch)   # Get debounced switch state
     return {'x': x_value, 'y': y_value, 'pen': pen_state}  # Output as dictionary
 
-# Part of Cloryel: Function to map input values to servo angles
+# Cloryel's Contribution: Function to map input values to servo angles
 def map_input_to_servo_angles(x_value, y_value):
     # Assuming x_value and y_value are between 0 and 65535
     # Map these values to servo angles (0 to 180 degrees)
@@ -96,14 +96,14 @@ def map_input_to_servo_angles(x_value, y_value):
     elbow_angle = (x_value / 65535) * 180
     return shoulder_angle, elbow_angle
 
-# Part of Cloryel: Function to create mock data generator
+# Cloryel's Contribution: Function to create mock data generator
 def generate_mock_data():
     x_value = random.randint(0, 65535)
     y_value = random.randint(0, 65535)
     pen_state = random.choice([0, 1])
     return {'x': x_value, 'y': y_value, 'pen': pen_state}
 
-# Main function
+# Jaures' Contribution: Testing framework and main function
 def main():
     # Calibrate shoulder and elbow joints
     print("Calibrating shoulder joint...")
@@ -125,7 +125,7 @@ def main():
         shoulder_angle, elbow_angle = map_input_to_servo_angles(input_data['x'], input_data['y'])
         print("Mapped Angles - Shoulder:", shoulder_angle, "Elbow:", elbow_angle)
 
-        # FRANCK'S PART OF THE CODE: Set servo angles with safety checks
+        # Frank's Contribution: Set servo angles with safety checks
         safe_set_servo_angle(shoulder_pwm, shoulder_angle, SHOULDER_MIN, SHOULDER_MAX)
         safe_set_servo_angle(elbow_pwm, elbow_angle, ELBOW_MIN, ELBOW_MAX)
         safe_set_servo_angle(pen_pwm, input_data['pen'] * 90, PEN_MIN, PEN_MAX)  # Example: pen up/down
