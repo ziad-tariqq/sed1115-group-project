@@ -9,13 +9,35 @@ y_pot = ADC(Pin(27))  # Y potentiometer on GPIO 27
 # Initialize pen control switch
 pen_switch = Pin(15, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 15
 
-# Initialize PWM for shoulder and elbow servos
+# Initialize PWM for shoulder, elbow, and pen servos
 shoulder_pwm = PWM(Pin(14))  # Shoulder servo on GPIO 14
 elbow_pwm = PWM(Pin(13))     # Elbow servo on GPIO 13
+pen_pwm = PWM(Pin(12))       # Pen servo on GPIO 12
 
 # Set PWM frequency for servos
 shoulder_pwm.freq(50)  # 50 Hz for standard servos
 elbow_pwm.freq(50)
+pen_pwm.freq(50)
+
+# FRANCK'S PART OF THE CODE: Safety limits for servos
+SHOULDER_MIN = 0
+SHOULDER_MAX = 180
+ELBOW_MIN = 0
+ELBOW_MAX = 180
+PEN_MIN = 0
+PEN_MAX = 90
+
+# FRANCK'S PART OF THE CODE: Function to set servo angle
+def set_servo_angle(servo, angle):
+    duty = int((angle / 180) * 65535)
+    servo.duty_u16(duty)
+
+# FRANCK'S PART OF THE CODE: Function to safely set servo angle
+def safe_set_servo_angle(servo, angle, min_angle, max_angle):
+    if min_angle <= angle <= max_angle:
+        set_servo_angle(servo, angle)
+    else:
+        print("Angle out of range!")
 
 # Function to calibrate a joint and determine its movement boundaries
 def calibrate_joint(pwm, feedback_adc):
@@ -102,6 +124,11 @@ def main():
         # Map input data to servo angles (Cloryel's part)
         shoulder_angle, elbow_angle = map_input_to_servo_angles(input_data['x'], input_data['y'])
         print("Mapped Angles - Shoulder:", shoulder_angle, "Elbow:", elbow_angle)
+
+        # FRANCK'S PART OF THE CODE: Set servo angles with safety checks
+        safe_set_servo_angle(shoulder_pwm, shoulder_angle, SHOULDER_MIN, SHOULDER_MAX)
+        safe_set_servo_angle(elbow_pwm, elbow_angle, ELBOW_MIN, ELBOW_MAX)
+        safe_set_servo_angle(pen_pwm, input_data['pen'] * 90, PEN_MIN, PEN_MAX)  # Example: pen up/down
 
         # Print input data for debugging
         print("Input Data:", input_data)
