@@ -12,9 +12,9 @@ pen_switch = Pin(12, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 15
 
 # Frank's Contribution: PWM Configuration and Servo Safety Checks
 # Initialize PWM for shoulder, elbow, and pen servos
-shoulder_pwm = PWM(Pin(14))  # Shoulder servo on GPIO 14
-elbow_pwm = PWM(Pin(13))     # Elbow servo on GPIO 13
-pen_pwm = PWM(Pin(12))       # Pen servo on GPIO 12
+shoulder_pwm = PWM(Pin(0))  # Shoulder servo on GPIO 14
+elbow_pwm = PWM(Pin(1))     # Elbow servo on GPIO 13
+pen_pwm = PWM(Pin(2))       # Pen servo on GPIO 12
 
 # Frank's Contribution: Set PWM frequency for servos
 shoulder_pwm.freq(50)  # 50 Hz for standard servos
