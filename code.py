@@ -8,7 +8,7 @@ x_pot = ADC(Pin(26))  # X potentiometer on GPIO 26
 y_pot = ADC(Pin(27))  # Y potentiometer on GPIO 27
 
 # Ziad's Contribution: Initialize pen control switch
-pen_switch = Pin(15, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 15
+pen_switch = Pin(12, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 15
 
 # Frank's Contribution: PWM Configuration and Servo Safety Checks
 # Initialize PWM for shoulder, elbow, and pen servos
@@ -28,12 +28,13 @@ PEN_UP = 2300
 PEN_DOWN = 3000
 
 # Frank's Contribution: Function to translate angle to duty cycle (safely within limits)
-def translate(angle):
-    """
-    Converts an angle (0-180 degrees) to a duty cycle within safe limits.
-    """
-    duty = int((DUTY_MAX - DUTY_MIN) * (angle / 180) + DUTY_MIN)
-    return max(DUTY_MIN, min(DUTY_MAX, duty))
+def translate(angle: float) -> int:
+# Your code here
+    pulse_width = 500 + (2500-500) * angle / 180 #Pulse width equation
+    duty_cycle = pulse_width / 20000 # 20000 microseconds / 20ms
+    duty_u16_value = int(duty_cycle * 65535) #multiply so it is in the pwn cl
+    duty_u16_value = max (2300, min(7500, duty_u16_value)) #Clamps down value
+    return duty_u16_value
 
 # Frank's Contribution: Function to safely set servo duty cycle
 def safe_set_servo_duty(servo, duty):
