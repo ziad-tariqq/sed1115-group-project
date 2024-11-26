@@ -12,9 +12,9 @@ pen_switch = Pin(12, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 15
 
 # Frank's Contribution: PWM Configuration and Servo Safety Checks
 # Initialize PWM for shoulder, elbow, and pen servos
-shoulder_pwm = PWM(Pin(0))  # Shoulder servo on GPIO 14
-elbow_pwm = PWM(Pin(1))     # Elbow servo on GPIO 13
-pen_pwm = PWM(Pin(2))       # Pen servo on GPIO 12
+shoulder_pwm = PWM(Pin(0))  # Shoulder servo on GPIO 0
+elbow_pwm = PWM(Pin(1))     # Elbow servo on GPIO 1
+pen_pwm = PWM(Pin(2))       # Pen servo on GPIO 2
 
 # Frank's Contribution: Set PWM frequency for servos
 shoulder_pwm.freq(50)  # 50 Hz for standard servos
@@ -38,9 +38,7 @@ def translate(angle: float) -> int:
 
 # Frank's Contribution: Function to safely set servo duty cycle
 def safe_set_servo_duty(servo, duty):
-    """
-    Set the servo to a specific duty cycle within safe limits.
-    """
+    #Set the servo to a specific duty cycle within safe limits.
     if DUTY_MIN <= duty <= DUTY_MAX:
         servo.duty_u16(duty)
     else:
@@ -48,9 +46,7 @@ def safe_set_servo_duty(servo, duty):
 
 # Frank's Contribution: Function to set servo angle
 def set_servo_angle(servo, angle):
-    """
-    Sets the servo to a specific angle, ensuring safety limits are respected.
-    """
+    #Sets the servo to a specific angle, ensuring safety limits are respected.
     duty = translate(angle)
     safe_set_servo_duty(servo, duty)
 
