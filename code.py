@@ -30,15 +30,12 @@ PEN_DOWN = 3000  # Duty cycle for pen down
 # ------------------------- Functions -------------------------
 
 # Function to translate angle to a duty cycle safely within limits
-def translate_angle_to_duty(angle):
-    """
-    Converts an angle (0-180 degrees) to a duty cycle value.
-    Ensures the duty cycle stays within the safe operating range.
-    """
-    # Calculate duty cycle proportional to the angle
-    duty = int((DUTY_MAX - DUTY_MIN) * (angle / 180) + DUTY_MIN)
-    # Clamp the duty cycle within the safe range
-    return max(DUTY_MIN, min(DUTY_MAX, duty))
+def translate(angle: float) -> int:
+    pulse_width = 500 + (2500-500) * angle / 180 #Pulse width equation
+    duty_cycle = pulse_width / 20000 # 20000 microseconds / 20ms
+    duty_u16_value = int(duty_cycle * 65535) #multiply so it is in the pwn cl
+    duty_u16_value = max (2300, min(7500, duty_u16_value)) #Clamps down value
+    return duty_u16_value
 
 # Function to safely set the duty cycle of a servo
 def safe_set_servo_duty(servo, duty):
@@ -55,23 +52,22 @@ def set_servo_angle(servo, angle):
     """
     Converts an angle to a duty cycle and applies it to the servo.
     """
-    duty = translate_angle_to_duty(angle)
+    duty = translate(angle)
     safe_set_servo_duty(servo, duty)
 
 # Function to read potentiometer values
 def read_potentiometers():
-    """
-    Reads analog values from the X and Y potentiometers.
-    """
+  #Reads analog values from the X and Y potentiometers.
     x_value = x_pot.read_u16()  # Read X potentiometer
     y_value = y_pot.read_u16()  # Read Y potentiometer
+    print(x_value,y_value)
     return x_value, y_value
 
 # Function to debounce the pen control switch
 def debounce_switch(pin):
-    """
-    Debounces the input from a switch to ensure stable readings.
-    """
+
+    #Debounces the input from a switch to ensure stable readings.
+
     stable_time = 20  # Stabilization time in milliseconds
     last_state = pin.value()  # Read the initial state
     last_debounce_time = time.ticks_ms()  # Record the current time
@@ -101,8 +97,8 @@ def test_input_handling():
     Tests reading input values and prints them.
     """
     x, y = read_potentiometers()
-    pen = debounce_switch(pen_switch)
-    print(f"Potentiometer X: {x}, Potentiometer Y: {y}, Pen Switch: {pen}")
+    #pen = debounce_switch(pen_switch)
+    #print(f"Potentiometer X: {x}, Potentiometer Y: {y}, Pen Switch: {pen}")
 
 # Testing signal processing
 def test_signal_processing():
@@ -114,19 +110,29 @@ def test_signal_processing():
     elbow_angle = (mock_data['x'] / 65535) * 180
     print(f"Mapped Angles - Shoulder: {shoulder_angle}, Elbow: {elbow_angle}")
 
-# Testing servo control
 def test_servo_control():
-    """
-    Tests servo control by moving them to random angles.
-    """
-    mock_data = generate_mock_data()
-    shoulder_angle = (mock_data['y'] / 65535) * 180
-    elbow_angle = (mock_data['x'] / 65535) * 180
-    pen_position = PEN_DOWN if mock_data['pen'] else PEN_UP
+   #Reads potentiometer inputs (X and Y) and maps them directly to PWM outputs. Applies the angles to the shoulder and elbow servos.
+    # Read potentiometer values
+    x_value, y_value = read_potentiometers()
+    
+    # Map potentiometer values to angles (0 to 180 degrees)
+    shoulder_angle = (y_value / 65535) * 180  # Y controls shoulder
+    elbow_angle = (x_value / 65535) * 180    # X controls elbow
 
+    # Convert angles to duty cycle and send to servos
+    print(f"Setting Shoulder Servo Angle: {shoulder_angle}")
     set_servo_angle(shoulder_pwm, shoulder_angle)
+    print(x_value,y_value)
+
+    print(f"Setting Elbow Servo Angle: {elbow_angle}")
     set_servo_angle(elbow_pwm, elbow_angle)
+
+    # Example: Check the pen state and adjust its position
+    pen_state = debounce_switch(pen_switch)
+    pen_position = PEN_DOWN if pen_state else PEN_UP
+    print(f"Setting Pen Position: {'DOWN' if pen_state else 'UP'}")
     safe_set_servo_duty(pen_pwm, pen_position)
+
 
 # Main function to run tests
 def main():
@@ -134,9 +140,11 @@ def main():
     Main entry point to run the testing framework.
     """
     print("Starting Tests...")
-    test_input_handling()
-    #test_signal_processing()
-    #test_servo_control()
+    while True:
+        test_input_handling()
+        print()
+        #test_signal_processing()
+        test_servo_control()
     print("All Tests Passed!")
 
 if __name__ == "__main__":
