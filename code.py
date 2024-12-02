@@ -9,7 +9,8 @@ x_pot = ADC(Pin(26))  # X potentiometer on GPIO 26
 y_pot = ADC(Pin(27))  # Y potentiometer on GPIO 27
 
 # Ziad's Contribution: Initialize pen control switch
-pen_switch = Pin(12, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 12
+#pen_switch = Pin(12, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 12
+pen_switch = Pin(12, Pin.IN)  # Pen control switch on GPIO 12
 
 # Frank's Contribution: Initialize PWM for shoulder, elbow, and pen servos
 shoulder_pwm = PWM(Pin(0))  # Shoulder servo on GPIO 0
@@ -71,7 +72,10 @@ def debounce_switch(pin):
     stable_time = 20  # Stabilization time in milliseconds
     last_state = pin.value()  # Read the initial state
     last_debounce_time = time.ticks_ms()  # Record the current time
+    
+    return last_state
 
+    '''
     while True:
         current_state = pin.value()  # Check the current state
         if current_state != last_state:
@@ -80,6 +84,7 @@ def debounce_switch(pin):
             if current_state != pin.value():  # Confirm stable state
                 return current_state
         last_state = current_state
+    '''
 
 # Function to generate mock data for testing
 def generate_mock_data():
@@ -97,8 +102,8 @@ def test_input_handling():
     Tests reading input values and prints them.
     """
     x, y = read_potentiometers()
-    #pen = debounce_switch(pen_switch)
-    #print(f"Potentiometer X: {x}, Potentiometer Y: {y}, Pen Switch: {pen}")
+    pen = debounce_switch(pen_switch)
+    print(f"Potentiometer X: {x}, Potentiometer Y: {y}, Pen Switch: {pen}")
 
 # Testing signal processing
 def test_signal_processing():
@@ -143,7 +148,7 @@ def main():
     while True:
         test_input_handling()
         print()
-        #test_signal_processing()
+        test_signal_processing()
         test_servo_control()
     print("All Tests Passed!")
 
