@@ -1,4 +1,7 @@
 from machine import ADC, Pin, PWM
+import numpy as np
+import math
+import matplotlib.pyplot as plt
 import time
 import random  # Needed for Cloryel's mock data generation
 
@@ -26,6 +29,64 @@ ELBOW_MIN = 0
 ELBOW_MAX = 180
 PEN_MIN = 0
 PEN_MAX = 90
+
+# Arm length constants
+L1, L2 = 155, 155
+
+# Forward Kinematics Function
+def forward_kinematics(theta1, theta2):
+    """Calculate the position of the end effector (x, y) using forward kinematics."""
+    x = L1 * math.cos(theta1) + L2 * math.cos(theta1 + theta2)
+    y = L1 * math.sin(theta1) + L2 * math.sin(theta1 + theta2)
+    return x, y
+
+# Fonction de Cinématique Inverse
+def inverse_kinematics(x_target, y_target):
+    r = np.sqrt(x_target**2 + y_target**2) # Distance from the target
+    
+    if r > (L1+L2) or r < abs(L1 - L2): # Checking if the target is reachable
+        print("Sorry I can't go that far")
+        return None, None
+    
+    theta2 = np.arccos((r**2 - L1**2 - L2**2) / (2 * L1 * L2)) #Calculate the elbow angle
+    theta1 = np.arctan2(y_target, x_target) - np.arccos((L2**2 + r**2 - L1**2) / (2 * L2 * r)) ##Calculate the sholder angle
+
+    return theta1, theta2
+
+#Example of target
+x_target = 100
+y_target = 200
+
+theta1, theta2 = inverse_kinematics(x_target, y_target)
+
+if theta1 is not None and theta2 is not None:
+    print(f"Angles calculés :")
+    print(f"Angle de l'épaule (θ1) : {np.degrees(theta1):.2f}°")
+    print(f"Angle du coude (θ2) : {np.degrees(theta2):.2f}°")
+
+    # Affichage du bras robotique dans un graphique
+    fig, ax = plt.subplots()
+    ax.set_xlim(-L1 - L2 - 1, L1 + L2 + 1)
+    ax.set_ylim(-L1 - L2 - 1, L1 + L2 + 1)
+    
+    # Calcul des positions des articulations
+    x1 = L1 * np.cos(theta1)  # Position du coude
+    y1 = L1 * np.sin(theta1)
+    x2 = x1 + L2 * np.cos(theta1 + theta2)  # Position du poignet (effecteur final)
+    y2 = y1 + L2 * np.sin(theta1 + theta2)
+    
+    # Tracer le bras et les articulations
+    ax.plot([0, x1, x2], [0, y1, y2], 'b-o', label="Bras robotique")
+    ax.scatter([x_target], [y_target], color="red", label="Position cible")
+    ax.set_title("SED 1115 : Inverse Kinematic_Brachiograph Final")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.legend()
+    ax.grid(True)
+    
+    plt.show()
+else:
+    print("Impossible d'atteindre la position cible.")
 
 # Frank's Contribution: Function to set servo angle
 def set_servo_angle(servo, angle):
