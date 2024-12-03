@@ -3,32 +3,33 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import time
-import random  # Needed for Cloryel's mock data generation
+import random  # For mock data generation
+
+# ------------------------- Setup and Configuration -------------------------
 
 # Ziad's Contribution: Initialize ADC for potentiometers
 x_pot = ADC(Pin(26))  # X potentiometer on GPIO 26
 y_pot = ADC(Pin(27))  # Y potentiometer on GPIO 27
 
 # Ziad's Contribution: Initialize pen control switch
-pen_switch = Pin(15, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 15
+#pen_switch = Pin(12, Pin.IN, Pin.PULL_DOWN)  # Pen control switch on GPIO 12
+pen_switch = Pin(12, Pin.IN)  # Pen control switch on GPIO 12
 
 # Frank's Contribution: Initialize PWM for shoulder, elbow, and pen servos
-shoulder_pwm = PWM(Pin(14))  # Shoulder servo on GPIO 14
-elbow_pwm = PWM(Pin(13))     # Elbow servo on GPIO 13
-pen_pwm = PWM(Pin(12))       # Pen servo on GPIO 12
+shoulder_pwm = PWM(Pin(0))  # Shoulder servo on GPIO 0
+elbow_pwm = PWM(Pin(1))     # Elbow servo on GPIO 1
+pen_pwm = PWM(Pin(2))       # Pen servo on GPIO 2
 
 # Frank's Contribution: Set PWM frequency for servos
-shoulder_pwm.freq(50)  # 50 Hz for standard servos
+shoulder_pwm.freq(50)  # Standard servo frequency (50 Hz)
 elbow_pwm.freq(50)
 pen_pwm.freq(50)
 
-# Frank's Contribution: Safety limits for servos
-SHOULDER_MIN = 0
-SHOULDER_MAX = 180
-ELBOW_MIN = 0
-ELBOW_MAX = 180
-PEN_MIN = 0
-PEN_MAX = 90
+# Frank's Contribution: Duty cycle limits for safe operation
+DUTY_MIN = 2300  # Minimum allowed duty cycle
+DUTY_MAX = 7500  # Maximum allowed duty cycle
+PEN_UP = 2300    # Duty cycle for pen up
+PEN_DOWN = 3000  # Duty cycle for pen down
 
 # Arm length constants
 L1, L2 = 155, 155
@@ -93,108 +94,127 @@ def set_servo_angle(servo, angle):
     duty = int((angle / 180) * 65535)
     servo.duty_u16(duty)
 
-# Frank's Contribution: Function to safely set servo angle
-def safe_set_servo_angle(servo, angle, min_angle, max_angle):
-    if min_angle <= angle <= max_angle:
-        set_servo_angle(servo, angle)
+# Function to translate angle to a duty cycle safely within limits
+def translate(angle: float) -> int:
+    pulse_width = 500 + (2500-500) * angle / 180 #Pulse width equation
+    duty_cycle = pulse_width / 20000 # 20000 microseconds / 20ms
+    duty_u16_value = int(duty_cycle * 65535) #multiply so it is in the pwn cl
+    duty_u16_value = max (2300, min(7500, duty_u16_value)) #Clamps down value
+    return duty_u16_value
+
+# Function to safely set the duty cycle of a servo
+def safe_set_servo_duty(servo, duty):
+    """
+    Sets the servo to a specific duty cycle within the safe range.
+    """
+    if DUTY_MIN <= duty <= DUTY_MAX:
+        servo.duty_u16(duty)
     else:
-        print("Angle out of range!")
+        print(f"Error: Duty cycle {duty} is out of range!")
 
-# Frank's Contribution: Function to calibrate a joint and determine its movement boundaries
-def calibrate_joint(pwm, feedback_adc):
-    min_feedback = 65535  # Start with max ADC value
-    max_feedback = 0      # Start with min ADC value
-    pwm.duty_u16(0)       # Start at the initial position
-    time.sleep(1)
+# Function to set servo angle safely
+def set_servo_angle(servo, angle):
+    """
+    Converts an angle to a duty cycle and applies it to the servo.
+    """
+    duty = translate(angle)
+    safe_set_servo_duty(servo, duty)
 
-    # Move the joint slowly across its range
-    for position in range(0, 65535, 500):  # Adjust the increment as needed
-        pwm.duty_u16(position)
-        time.sleep(0.05)  # Allow time for the servo to move
-        feedback_value = feedback_adc.read_u16()  # Read feedback
-
-        # Track the min and max feedback values
-        if feedback_value < min_feedback:
-            min_feedback = feedback_value
-        if feedback_value > max_feedback:
-            max_feedback = feedback_value
-
-    pwm.duty_u16(0)  # Return to initial position
-    return min_feedback, max_feedback
-
-# Ziad's Contribution: Function to read potentiometer values
+# Function to read potentiometer values
 def read_potentiometers():
-    x_value = x_pot.read_u16()  # Returns a value between 0 and 65535
-    y_value = y_pot.read_u16()
+  #Reads analog values from the X and Y potentiometers.
+    x_value = x_pot.read_u16()  # Read X potentiometer
+    y_value = y_pot.read_u16()  # Read Y potentiometer
+    print(x_value,y_value)
     return x_value, y_value
 
-# Ziad's Contribution: Function to debounce the pen control switch
+# Function to debounce the pen control switch
 def debounce_switch(pin):
-    stable_time = 20  # milliseconds
-    last_state = pin.value()
-    last_debounce_time = time.ticks_ms()
 
+    #Debounces the input from a switch to ensure stable readings.
+
+    stable_time = 20  # Stabilization time in milliseconds
+    last_state = pin.value()  # Read the initial state
+    last_debounce_time = time.ticks_ms()  # Record the current time
+    
+    return last_state
+
+    '''
     while True:
-        current_state = pin.value()
+        current_state = pin.value()  # Check the current state
         if current_state != last_state:
-            last_debounce_time = time.ticks_ms()
+            last_debounce_time = time.ticks_ms()  # Reset debounce timer
         if (time.ticks_diff(time.ticks_ms(), last_debounce_time) > stable_time):
-            if current_state != pin.value():
+            if current_state != pin.value():  # Confirm stable state
                 return current_state
         last_state = current_state
+    '''
 
-# Ziad's Contribution: Function to get processed input data
-def get_input_data():
-    x_value, y_value = read_potentiometers()  # Get potentiometer readings
-    pen_state = debounce_switch(pen_switch)   # Get debounced switch state
-    return {'x': x_value, 'y': y_value, 'pen': pen_state}  # Output as dictionary
-
-# Cloryel's Contribution: Function to map input values to servo angles
-def map_input_to_servo_angles(x_value, y_value):
-    # Assuming x_value and y_value are between 0 and 65535
-    # Map these values to servo angles (0 to 180 degrees)
-    shoulder_angle = (y_value / 65535) * 180
-    elbow_angle = (x_value / 65535) * 180
-    return shoulder_angle, elbow_angle
-
-# Cloryel's Contribution: Function to create mock data generator
+# Function to generate mock data for testing
 def generate_mock_data():
-    x_value = random.randint(0, 65535)
-    y_value = random.randint(0, 65535)
-    pen_state = random.choice([0, 1])
+    """
+    Simulates input data for testing purposes.
+    """
+    x_value = random.randint(0, 65535)  # Mock X potentiometer value
+    y_value = random.randint(0, 65535)  # Mock Y potentiometer value
+    pen_state = random.choice([0, 1])   # Random pen switch state
     return {'x': x_value, 'y': y_value, 'pen': pen_state}
 
-# Jaures' Contribution: Testing framework and main function
+# Testing input handling
+def test_input_handling():
+    """
+    Tests reading input values and prints them.
+    """
+    x, y = read_potentiometers()
+    pen = debounce_switch(pen_switch)
+    print(f"Potentiometer X: {x}, Potentiometer Y: {y}, Pen Switch: {pen}")
+
+# Testing signal processing
+def test_signal_processing():
+    """
+    Simulates mapping input values to servo angles and applies them.
+    """
+    mock_data = generate_mock_data()
+    shoulder_angle = (mock_data['y'] / 65535) * 180
+    elbow_angle = (mock_data['x'] / 65535) * 180
+    print(f"Mapped Angles - Shoulder: {shoulder_angle}, Elbow: {elbow_angle}")
+
+def test_servo_control():
+   #Reads potentiometer inputs (X and Y) and maps them directly to PWM outputs. Applies the angles to the shoulder and elbow servos.
+    # Read potentiometer values
+    x_value, y_value = read_potentiometers()
+    
+    # Map potentiometer values to angles (0 to 180 degrees)
+    shoulder_angle = (y_value / 65535) * 180  # Y controls shoulder
+    elbow_angle = (x_value / 65535) * 180    # X controls elbow
+
+    # Convert angles to duty cycle and send to servos
+    print(f"Setting Shoulder Servo Angle: {shoulder_angle}")
+    set_servo_angle(shoulder_pwm, shoulder_angle)
+    print(x_value,y_value)
+
+    print(f"Setting Elbow Servo Angle: {elbow_angle}")
+    set_servo_angle(elbow_pwm, elbow_angle)
+
+    # Example: Check the pen state and adjust its position
+    pen_state = debounce_switch(pen_switch)
+    pen_position = PEN_DOWN if pen_state else PEN_UP
+    print(f"Setting Pen Position: {'DOWN' if pen_state else 'UP'}")
+    safe_set_servo_duty(pen_pwm, pen_position)
+
+
+# Main function to run tests
 def main():
-    # Calibrate shoulder and elbow joints
-    print("Calibrating shoulder joint...")
-    shoulder_feedback = ADC(Pin(28))  # Example feedback pin for shoulder
-    shoulder_limits = calibrate_joint(shoulder_pwm, shoulder_feedback)
-    print("Shoulder limits:", shoulder_limits)
-
-    print("Calibrating elbow joint...")
-    elbow_feedback = ADC(Pin(27))     # Example feedback pin for elbow
-    elbow_limits = calibrate_joint(elbow_pwm, elbow_feedback)
-    print("Elbow limits:", elbow_limits)
-
-    # Main loop to handle inputs
+    """
+    Main entry point to run the testing framework.
+    """
+    print("Starting Tests...")
     while True:
-        # Generate mock data (Cloryel's part)
-        input_data = generate_mock_data()
+        test_input_handling()
+        print()
+        test_signal_processing()
+        test_servo_control()
+    print("All Tests Passed!")
 
-        # Map input data to servo angles (Cloryel's part)
-        shoulder_angle, elbow_angle = map_input_to_servo_angles(input_data['x'], input_data['y'])
-        print("Mapped Angles - Shoulder:", shoulder_angle, "Elbow:", elbow_angle)
-
-        # Frank's Contribution: Set servo angles with safety checks
-        safe_set_servo_angle(shoulder_pwm, shoulder_angle, SHOULDER_MIN, SHOULDER_MAX)
-        safe_set_servo_angle(elbow_pwm, elbow_angle, ELBOW_MIN, ELBOW_MAX)
-        safe_set_servo_angle(pen_pwm, input_data['pen'] * 90, PEN_MIN, PEN_MAX)  # Example: pen up/down
-
-        # Print input data for debugging
-        print("Input Data:", input_data)
-        time.sleep(0.5)  # Adjust the delay as needed
-
-# Run the main function
 if __name__ == "__main__":
     main()
