@@ -43,14 +43,14 @@ def forward_kinematics(theta1, theta2):
 
 # Fonction de Cinématique Inverse
 def inverse_kinematics(x_target, y_target):
-    r = np.sqrt(x_target**2 + y_target**2) # Distance from the target
+    r = math.sqrt(x_target**2 + y_target**2) # Distance from the target
     
     if r > (L1+L2) or r < abs(L1 - L2): # Checking if the target is reachable
         print("Sorry I can't go that far")
         return None, None
     
-    theta2 = np.arccos((r**2 - L1**2 - L2**2) / (2 * L1 * L2)) #Calculate the elbow angle
-    theta1 = np.arctan2(y_target, x_target) - np.arccos((L2**2 + r**2 - L1**2) / (2 * L2 * r)) ##Calculate the sholder angle
+    theta2 = math.arccos((r**2 - L1**2 - L2**2) / (2 * L1 * L2)) #Calculate the elbow angle
+    theta1 = math.arctan2(y_target, x_target) - math.arccos((L2**2 + r**2 - L1**2) / (2 * L2 * r)) ##Calculate the sholder angle
 
     return theta1, theta2
 
@@ -71,10 +71,10 @@ if theta1 is not None and theta2 is not None:
     ax.set_ylim(-L1 - L2 - 1, L1 + L2 + 1)
     
     # Calcul des positions des articulations
-    x1 = L1 * np.cos(theta1)  # Position du coude
-    y1 = L1 * np.sin(theta1)
-    x2 = x1 + L2 * np.cos(theta1 + theta2)  # Position du poignet (effecteur final)
-    y2 = y1 + L2 * np.sin(theta1 + theta2)
+    x1 = L1 * math.cos(theta1)  # Position du coude
+    y1 = L1 * math.sin(theta1)
+    x2 = x1 + L2 * math.cos(theta1 + theta2)  # Position du poignet (effecteur final)
+    y2 = y1 + L2 * math.sin(theta1 + theta2)
     
     # Tracer le bras et les articulations
     ax.plot([0, x1, x2], [0, y1, y2], 'b-o', label="Bras robotique")
